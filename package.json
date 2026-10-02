@@ -1,0 +1,32 @@
+{
+  "name": "json-slim",
+  "version": "0.1.0",
+  "description": "Shrink JSON documents by dropping redundant values, without silently destroying meaning. Zero dependencies.",
+  "type": "commonjs",
+  "main": "src/index.js",
+  "bin": {
+    "json-slim": "bin/json-slim.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "json",
+    "minify",
+    "compact",
+    "prune",
+    "cli",
+    "ndjson"
+  ],
+  "license": "MIT",
+  "dependencies": {},
+  "engines": {
+    "node": ">=20"
+  }
+}
