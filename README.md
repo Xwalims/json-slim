@@ -3,6 +3,29 @@
 Shrink JSON documents by dropping redundant values, without silently
 destroying meaning. Zero dependencies.
 
+<!-- hero -->
+
+[![CI](https://github.com/json-slim/actions/workflows/ci.yml/badge.svg)](https://github.com/json-slim/actions/workflows/ci.yml)
+![node 20+](https://img.shields.io/badge/node-20+-brightgreen)
+![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
+![dependencies](https://img.shields.io/badge/dependencies-none-2f6f4f)
+
+## Contents
+
+- [What it is](#what-it-is)
+- [Why "removing 0 and false" needs a policy](#why-removing-0-and-false-needs-a-policy)
+- [Install](#install)
+- [Usage](#usage)
+  - [Review before committing to it](#review-before-committing-to-it)
+  - [Whitespace only](#whitespace-only)
+  - [Protected keys](#protected-keys)
+- [CLI flags](#cli-flags)
+  - [Exit codes](#exit-codes)
+- [Notes on two edge cases](#notes-on-two-edge-cases)
+- [Running the tests](#running-the-tests)
+
+<!-- /hero -->
+
 ## What it is
 
 - **Nothing is dropped by surprise.** Only `null` is pruned by default. Every
