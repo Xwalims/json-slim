@@ -59,7 +59,7 @@ missing key are three different things to whoever reads the document.
 No dependencies, so a checkout is all you need:
 
 ```console
-$ git clone https://github.com/xwellames/json-slim
+$ git clone https://github.com/Xwalims/json-slim
 $ cd json-slim
 $ node bin/json-slim.js --help
 ```
