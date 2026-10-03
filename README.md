@@ -5,7 +5,7 @@ destroying meaning. Zero dependencies.
 
 <!-- hero -->
 
-[![CI](https://github.com/json-slim/actions/workflows/ci.yml/badge.svg)](https://github.com/json-slim/actions/workflows/ci.yml)
+[![CI](https://github.com/Xwalims/json-slim/actions/workflows/ci.yml/badge.svg)](https://github.com/Xwalims/json-slim/actions/workflows/ci.yml)
 ![node 20+](https://img.shields.io/badge/node-20+-brightgreen)
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![dependencies](https://img.shields.io/badge/dependencies-none-2f6f4f)
@@ -79,12 +79,19 @@ missing key are three different things to whoever reads the document.
 
 ## Install
 
-No dependencies, so a checkout is all you need:
+Not published to npm — that name belongs to an unrelated JSON minifier. Clone and
+run it directly:
 
 ```console
-$ git clone https://github.com/Xwalims/json-slim
+$ git clone https://github.com/Xwalims/json-slim.git
 $ cd json-slim
 $ node bin/json-slim.js --help
+```
+
+Or link it onto your `PATH`:
+
+```console
+$ npm link          # provides the `json-slim` command
 ```
 
 ## Usage
