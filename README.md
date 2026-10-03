@@ -188,6 +188,7 @@ $ json-slim config.json --drop-null --keep-key-pattern '^user_'
 | `--drop-empty-object` | off | Drop objects that became empty |
 | `--drop-nan` | off | Drop `NaN` |
 | `--drop-array-elements` | off | Remove droppable array slots; **renumbers** |
+| `--compact-arrays` | off | After dropping elements, remove the holes left behind |
 | `--keep-id-like` | on | Protect `id`, `uuid`, `version`, `etag`, … |
 | `--keep-flags` | on | Protect `is_*`, `has_*`, `can_*` |
 | `--keep-keys a,b` | none | Extra key names to protect |
@@ -197,6 +198,7 @@ $ json-slim config.json --drop-null --keep-key-pattern '^user_'
 | `--indent N` | `2` | Indent width for `--pretty` |
 | `--sort-keys` | off | Emit keys in sorted order |
 | `--out FILE` | stdout | Write the result to a file |
+| `--stdin` | off | Read the document from standard input |
 | `--stats` | off | Size report on stderr |
 | `--explain` | off | List removed values on stderr |
 | `--dry-run` | off | Write nothing, report only |
@@ -204,6 +206,8 @@ $ json-slim config.json --drop-null --keep-key-pattern '^user_'
 | `--fail-on-change` | off | Exit 1 if anything was removed |
 | `--explain-policy` | — | Print the active policy and exit |
 | `--minify-only` | off | Whitespace removal only |
+| `-h, --help` | — | Print usage |
+| `--version` | — | Print the version |
 
 ### Exit codes
 

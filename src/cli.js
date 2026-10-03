@@ -64,6 +64,8 @@ Pruning (which value classes may be dropped):
   --drop-nan               drop NaN                      [default: off]
   --drop-array-elements    drop falsy ARRAY ELEMENTS     [default: off]
                            ^ renumbers the array; see --compact-arrays
+  --compact-arrays         after dropping elements, remove the holes
+                           [default: off]
 
 Protecting keys:
   --keep-id-like           protect id/uuid/version/etag keys      [default: on]
@@ -77,6 +79,7 @@ Output:
   --indent N              indent width for --pretty          [default: 2]
   --sort-keys             emit object keys in sorted order
   --out FILE              write result to FILE ('-' for stdout)
+  --stdin                 read the document from standard input
   --stats                 print a size report to stderr
   --explain               list every removed value to stderr
   --dry-run               do not write; report only
