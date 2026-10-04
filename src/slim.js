@@ -14,6 +14,45 @@ const { createValuePolicy } = require('./policies.js');
 const { DEFAULTS, isPlainObject } = require('./util.js');
 
 /**
+ * The one key name that `out[key] = value` cannot write.
+ *
+ * `__proto__` is not a property of the prototype; it is an ACCESSOR defined on
+ * `Object.prototype`. Assigning to it runs the setter, which REPLACES THE
+ * PROTOTYPE of the container instead of creating an own key:
+ *
+ *   const o = {};
+ *   o.__proto__ = { polluted: true };   // setter ran; no own property created
+ *   Object.keys(o);                     // []
+ *   JSON.stringify(o);                  // {}
+ *
+ * The key is not "stored but hidden" -- it is gone. Nothing downstream can see
+ * it: `hasOwnProperty` says no, `Object.entries` skips it, and no removal is
+ * reported because the walker never dropped anything. A document containing
+ * `{"__proto__":{...},"a":1}` therefore went through slimming and came out with
+ * the payload silently deleted AND the rebuilt object's prototype swapped for
+ * the payload. `JSON.parse` creates a real own data property for exactly the
+ * same bytes, which is the behaviour we owe the caller.
+ *
+ * `constructor`, `toString`, `valueOf` and `hasOwnProperty` need nothing
+ * special: those are ordinary data properties on `Object.prototype`, so plain
+ * assignment creates an own property that shadows the inherited one, exactly as
+ * `JSON.parse` does.
+ */
+function setKey(target, key, value) {
+  if (key === '__proto__') {
+    Object.defineProperty(target, key, {
+      value,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
+    return target;
+  }
+  target[key] = value;
+  return target;
+}
+
+/**
  * Raised when the document nests deeper than `maxDepth`.
  */
 class DepthLimitError extends RangeError {
@@ -36,6 +75,10 @@ function slim(document, options = {}) {
   const policy = createValuePolicy(options);
   const maxDepth = Number.isInteger(options.maxDepth) ? options.maxDepth : DEFAULTS.maxDepth;
   const dropArrayElements = options.dropArrayElements ?? DEFAULTS.dropArrayElements;
+  // Read the flag that was previously declared in DEFAULTS, listed in --help and
+  // documented in the README, but never consulted here -- so `--compact-arrays`
+  // was a no-op that behaved exactly like its own default.
+  const compactArrays = options.compactArrays ?? DEFAULTS.compactArrays;
 
   const removals = [];
   const state = { nulls: 0, falsy: 0, emptyContainers: 0, arrayElements: 0, other: 0 };
@@ -78,8 +121,52 @@ function slim(document, options = {}) {
     // non-empty but became empty is a *result* of pruning, and judging it
     // before the walk would leave dropEmptyArray/dropEmptyObject dead code.
     if (Array.isArray(node)) {
+      // Positions, not just values.
+      //
+      // The output is written BY INDEX, never pushed, because the two decisions
+      // this flag expresses both need the index to survive the walk:
+      //
+      //   default -- a gap the INPUT already had stays a gap. `[1, , 3]` used to
+      //     come back as `[1, 3]`: reading index 1 of a holey array yields
+      //     `undefined`, `push` copied that `undefined` forward, and the array
+      //     was silently densified. The document said index 2 held 3 and the
+      //     output says index 1 holds 3 -- positional information destroyed by
+      //     an operation that promises to preserve meaning. `JSON.stringify`
+      //     renders the hole as `null`, which is what every other JSON
+      //     implementation does with it.
+      //
+      //   --compact-arrays -- close those gaps, i.e. renumber onto a dense array.
+      //     This is the opt-in, because renumbering is a real edit: it changes
+      //     what every index after a gap means.
+      //
+      // Elements REMOVED by the policy are renumbered away in both modes, which
+      // is the long-documented behaviour of --drop-array-elements ("renumbers
+      // the array") and is pinned by the existing suite.
       const out = [];
+      // Counters, because the output length is what makes a gap observable and it
+      // cannot be read off a cursor: a trailing gap produces no assignment at
+      // all, so a cursor would report an array too short to contain it.
+      //   gaps      -- input gaps (default keeps them, --compact-arrays closes them)
+      //   closed    -- positions that vanished: a removed element, or a child the
+      //                walker dropped. These renumber in BOTH modes, which is the
+      //                documented behaviour of --drop-array-elements.
+      let write = 0;
+      let gaps = 0;
+      let closed = 0;
+
       for (let index = 0; index < node.length; index += 1) {
+        // `index in node` is the only honest test for a gap. A stored
+        // `undefined` VALUE is not a gap and must never be treated as one.
+        if (!(index in node)) {
+          gaps += 1;
+          // Compacting closes the gap: the next element moves up into it.
+          if (compactArrays) continue;
+          // Preserving it leaves a hole behind at this exact position, and the
+          // cursor advances past it so every later element keeps its index.
+          write += 1;
+          continue;
+        }
+
         const item = node[index];
         const childPath = `${path}/${index}`;
 
@@ -89,12 +176,22 @@ function slim(document, options = {}) {
         // ORIGINAL element, before any pruning shifts indices.
         if (dropArrayElements && policy.shouldDrop(item, '', { inArray: true, allowArrayElement: true })) {
           note(childPath, item, 'array-element');
-          continue;
+          closed += 1;
+          continue; // the slot closes up: this is the documented renumbering
         }
 
         const res = visit(item, childPath, '', depth + 1, true);
-        if (res.kept) out.push(res.value);
+        if (!res.kept) {
+          closed += 1;
+          continue;
+        }
+        out[write] = res.value;
+        write += 1;
       }
+
+      // Every input position is accounted for exactly once: it was written, it
+      // was a gap, or it closed. So the length is what is left over.
+      out.length = compactArrays ? node.length - gaps - closed : node.length - closed;
 
       if (prunable && !inArray && policy.shouldDrop(out, key, { inArray: false })) {
         note(path, out, 'empty-array');
@@ -107,7 +204,9 @@ function slim(document, options = {}) {
       const out = {};
       for (const k of Object.keys(node)) {
         const res = visit(node[k], `${path}/${escapePointer(k)}`, k, depth + 1, false);
-        if (res.kept) out[k] = res.value;
+        // setKey, not `out[k] =`: for the one accessor name on Object.prototype
+        // plain assignment runs the setter and destroys the key (see above).
+        if (res.kept) setKey(out, k, res.value);
       }
 
       if (prunable && !inArray && policy.shouldDrop(out, key, { inArray: false })) {
@@ -173,7 +272,9 @@ function stringify(value, options = {}) {
 function sortReplacer(key, value) {
   if (isPlainObject(value)) {
     const sorted = {};
-    for (const k of Object.keys(value).sort()) sorted[k] = value[k];
+    // setKey again: this replacer rebuilds EVERY object in the document, so it
+    // was losing `__proto__` on a second, independent path from the walker.
+    for (const k of Object.keys(value).sort()) setKey(sorted, k, value[k]);
     return sorted;
   }
   return value;

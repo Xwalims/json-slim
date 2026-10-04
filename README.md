@@ -22,6 +22,7 @@ destroying meaning. Zero dependencies.
 - [CLI flags](#cli-flags)
   - [Exit codes](#exit-codes)
 - [Notes on two edge cases](#notes-on-two-edge-cases)
+- [Keys named `__proto__`](#keys-named-__proto__)
 - [Running the tests](#running-the-tests)
 
 <!-- /hero -->
@@ -277,12 +278,72 @@ $ echo '{"i":[1,null,2]}' | json-slim --drop-array-elements
 {"i":[1,2]}
 ```
 
+**A gap the input already had is not the same as a removed element.** Removing an
+element closes its slot up in both modes — that is the renumbering above. A gap
+the document arrived with is a different thing, and by default it stays a gap:
+
+```js
+const a = [1, , 3];        // index 1 is a hole
+slim({ a }).value.a;       // keys ['0','2'] — still a hole at index 1
+slim({ a }, { compactArrays: true }).value.a;   // keys ['0','1'] — closed
+```
+
+The reason is that reading index 1 of a holey array yields `undefined`, so the
+obvious `push`-based rebuild silently *densified* it: `[1, , 3]` came back as
+`[1, 3]`, claiming index 1 held `3` when the document said index 2 did. Nothing
+was dropped, no removal was reported, and positional information disappeared —
+the one thing this tool promises not to do. The output text is
+`{"a":[1,null,3]}`, because `JSON.stringify` renders a hole as `null` like every
+other JSON implementation; the difference lives in the value, where `1 in a` is
+`false`.
+
+`--compact-arrays` is therefore the explicit request to close those gaps. It
+never reorders and never changes *what* is removed.
+
+## Keys named `__proto__`
+
+A document may legitimately contain a key called `__proto__`, and `json-slim`
+keeps it — through the walker, through `--sort-keys`, and in every output shape:
+
+```console
+$ echo '{"__proto__":{"polluted":true},"a":1}' | json-slim
+{"__proto__":{"polluted":true},"a":1}
+```
+
+This is worth spelling out because the naive implementation loses the key with no
+error at all. `__proto__` is not a property of the prototype; it is an **accessor**
+defined on `Object.prototype`, so `out[k] = v` for that one name runs a setter
+that replaces the object's prototype instead of creating a key:
+
+```js
+const o = {};
+o.__proto__ = { polluted: true };
+Object.keys(o);       // []  — the key is gone
+JSON.stringify(o);    // {}
+```
+
+So a document containing `{"__proto__":{...},"a":1}` used to be slimmed into
+`{"a":1}` *with the payload installed as the prototype of the result object* —
+data silently deleted and every rebuilt container polluted, which is the
+prototype-pollution footgun in a tool whose whole pitch is not destroying
+meaning. `JSON.parse` creates a real own data property for exactly the same
+bytes, and that is what `slim()` now produces: the key is written with
+`Object.defineProperty`, the same approach `envjson` uses.
+
+`constructor`, `toString`, `valueOf`, `hasOwnProperty` and `prototype` need no
+special handling and get none: those are ordinary data properties on
+`Object.prototype`, so plain assignment shadows them exactly as `JSON.parse`
+does. Escaping them too would be a bug, not caution.
+
+Consumers reading the output should do the same: `value.__proto__` is the
+document's key, not the prototype.
+
 ## Running the tests
 
 ```console
 $ node --test
-ℹ tests 105
-ℹ pass 105
+ℹ tests 131
+ℹ pass 131
 ℹ fail 0
 ```
 
