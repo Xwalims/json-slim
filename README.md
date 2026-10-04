@@ -216,8 +216,13 @@ $ json-slim config.json --drop-null --keep-key-pattern '^user_'
 | --- | --- |
 | 0 | Success |
 | 1 | `--fail-on-change` and the document was modified |
-| 2 | Usage error, unreadable file, or invalid JSON |
+| 2 | Usage error, unreadable file, invalid JSON, or an unwritable `--out` |
 | 3 | `--check` and something would be removed |
+
+Code 2 is the single bucket for "the tool could not do what you asked, and
+nothing was written" — an unreadable input, an unknown flag, invalid JSON, or a
+`--out` target that cannot be created. A stack trace is never the answer, and
+code 1 always means the one thing the table says it means.
 
 `--check` is meant for CI: it fails the build when a payload has picked up
 fields the pipeline does not expect, without rewriting anything.

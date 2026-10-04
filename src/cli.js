@@ -327,7 +327,18 @@ function main(argv, io = {}) {
   }
   if (opts.failOnChange && stats && stats.total > 0) return 1;
 
-  if (!opts.dryRun) writeOutput(outputText, opts, out);
+  // A failed --out is a usage error (exit 2), like an unreadable input. It
+  // used to be thrown out of here, so Node printed a raw stack trace and exited
+  // 1 -- the code this package documents as "--fail-on-change and the document
+  // was modified". A CI step reading that would conclude the input changed when
+  // nothing had been written at all.
+  if (!opts.dryRun) {
+    const writeError = writeOutput(outputText, opts, out);
+    if (writeError) {
+      err(`json-slim: ${writeError}\n`);
+      return 2;
+    }
+  }
   if (opts.stats) err(`${formatStats(beforeBytes, afterBytes, stats)}\n`);
 
   return 0;
@@ -336,16 +347,21 @@ function main(argv, io = {}) {
 /**
  * Write the result to a file or stdout.
  *
+ * Returns an error message instead of throwing, because `main` owns the
+ * exit-code contract and this used to escape it entirely.
+ *
  * @param {string} text
  * @param {object} opts
  * @param {Function} out
+ * @returns {string|null} a message when the write failed, else null.
  */
 function writeOutput(text, opts, out) {
-  if (!opts.out || opts.out === '-') { out(text); return; }
+  if (!opts.out || opts.out === '-') { out(text); return null; }
   try {
     fs.writeFileSync(opts.out, text, 'utf8');
+    return null;
   } catch (e) {
-    throw new Error(`cannot write ${opts.out}: ${e.message}`);
+    return `cannot write ${opts.out}: ${e.message}`;
   }
 }
 

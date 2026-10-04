@@ -263,6 +263,44 @@ test('parseArgs handles --out without a value by erroring', () => {
   assert.throws(() => parseArgs(['--out']), /requires a value/);
 });
 
+// A --out that cannot be written used to escape `main` as a thrown Error: Node
+// printed a raw stack trace and the process exited 1, which this package
+// documents as "--fail-on-change and the document was modified". Both halves
+// are wrong, so both are asserted: the code is 2, and nothing that looks like a
+// crash reached stderr.
+test('an unwritable --out exits 2 instead of throwing', () => {
+  const f = fixture('out.json', { a: 1, b: null });
+  const r = run([f, '--out', path.join(tmp, 'no-such-dir', 'x.json')]);
+  assert.equal(r.status, 2, `expected a usage error, got ${r.status}: ${r.stderr}`);
+  assert.match(r.stderr, /json-slim: cannot write/);
+  assert.doesNotMatch(r.stderr, /at Object\./, 'a stack trace leaked to the user');
+  assert.doesNotMatch(r.stderr, /\n\s+at /, 'a stack trace leaked to the user');
+});
+
+test('--out onto a directory exits 2 rather than crashing', () => {
+  const f = fixture('outdir.json', { a: 1 });
+  const r = run([f, '--out', tmp]);
+  assert.equal(r.status, 2, `expected a usage error, got ${r.status}: ${r.stderr}`);
+  assert.doesNotMatch(r.stderr, /\n\s+at /, 'a stack trace leaked to the user');
+});
+
+test('a successful --out still writes and exits 0', () => {
+  const f = fixture('writesrc.json', { a: 1, b: null });
+  const dest = path.join(tmp, 'written.json');
+  const r = run([f, '--out', dest]);
+  assert.equal(r.status, 0);
+  assert.equal(JSON.parse(fs.readFileSync(dest, 'utf8')).a, 1);
+});
+
+// The write happens only after the exit-code checks, so --dry-run must never
+// touch the filesystem even when the target is unwritable.
+test('--dry-run reports no write failure for an unwritable --out', () => {
+  const f = fixture('dry.json', { a: 1, b: null });
+  const r = run([f, '--dry-run', '--out', path.join(tmp, 'no-such-dir', 'x.json')]);
+  assert.equal(r.status, 0);
+  assert.doesNotMatch(r.stderr, /cannot write/);
+});
+
 test('parseArgs treats -h as help', () => {
   assert.equal(parseArgs(['-h']).help, true);
 });
