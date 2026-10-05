@@ -43,8 +43,9 @@ const DEFAULT_KEEP_KEY_PATTERN = /^(is|has|can|should|allow|enable|require)[_A-Z
  * @param {boolean} [options.dropFalse=false] drop `false` booleans.
  * @param {boolean} [options.dropZero=false] drop numeric zero (`0` and `-0`).
  * @param {boolean} [options.dropEmptyString=false] drop `''`.
- * @param {boolean} [options.dropEmptyArray=false] drop arrays that became empty.
- * @param {boolean} [options.dropEmptyObject=false] drop objects that became empty.
+ * @param {boolean} [options.dropEmptyArray=false] drop every empty array, whether
+ *   it was already empty in the input or became empty during this run.
+ * @param {boolean} [options.dropEmptyObject=false] same for empty objects.
  * @param {boolean} [options.keepIdLike=true] never drop these keys, whatever
  *   their value. An empty `id` is usually a bug signal, not redundancy.
  * @param {boolean} [options.keepFlags=true] never drop `is_*`/`has_*`/`can_*`
@@ -127,8 +128,8 @@ function describePolicy(policy) {
     ['false', Boolean(o.dropFalse), 'opt-in: false is a real answer for flags and permissions'],
     ['0', Boolean(o.dropZero), 'opt-in: zero is a real count, offset or state'],
     ['""', Boolean(o.dropEmptyString), 'opt-in: empty string may be a deliberate value'],
-    ['[]', Boolean(o.dropEmptyArray), 'opt-in: only drops containers that became empty'],
-    ['{}', Boolean(o.dropEmptyObject), 'opt-in: only drops objects that became empty'],
+    ['[]', Boolean(o.dropEmptyArray), 'opt-in: drops every empty array, whether it was already empty or became empty here'],
+    ['{}', Boolean(o.dropEmptyObject), 'opt-in: drops every empty object, whether it was already empty or became empty here'],
     ['NaN', Boolean(o.dropNaN), 'opt-in: NaN is not valid JSON and may be a data bug'],
   ];
   return rows.map(([value, enabled, why]) => ({ value, enabled, why }));

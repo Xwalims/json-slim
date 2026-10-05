@@ -70,8 +70,8 @@ Default value policy:
   false  false    opt-in: false is a real answer for flags and permissions
   0      false    opt-in: zero is a real count, offset or state
   ""     false    opt-in: empty string may be a deliberate value
-  []     false    opt-in: only drops containers that became empty
-  {}     false    opt-in: only drops objects that became empty
+  []     false    opt-in: drops every empty array, whether it was already empty or became empty here
+  {}     false    opt-in: drops every empty object, whether it was already empty or became empty here
   NaN    false    opt-in: NaN is not valid JSON and may be a data bug
 
 Anything other than null is opt-in: an empty list, a zero count and a
@@ -185,8 +185,8 @@ $ json-slim config.json --drop-null --keep-key-pattern '^user_'
 | `--drop-false` | off | Drop `false` booleans |
 | `--drop-zero` | off | Drop `0` and `-0` |
 | `--drop-empty-string` | off | Drop `""` |
-| `--drop-empty-array` | off | Drop arrays that became empty |
-| `--drop-empty-object` | off | Drop objects that became empty |
+| `--drop-empty-array` | off | Drop every empty array, already-empty ones included |
+| `--drop-empty-object` | off | Drop every empty object, already-empty ones included |
 | `--drop-nan` | off | Drop `NaN` |
 | `--drop-array-elements` | off | Remove droppable array slots; **renumbers** |
 | `--compact-arrays` | off | After dropping elements, remove the holes left behind |
@@ -273,6 +273,28 @@ became empty is a *result* of pruning, and `--drop-empty-object` removes it:
 $ echo '{"a":{"b":null}}' | json-slim --drop-empty-object
 {}
 ```
+
+**…and one that was already empty is removed too.** This is the part worth
+reading before you turn the flag on: `--drop-empty-object` and
+`--drop-empty-array` drop *every* empty container, not only the ones pruning
+emptied. `{"b": {}}` loses `b`, even though nothing was pruned:
+
+```console
+$ echo '{"b":{}}' | json-slim --drop-empty-object
+{}
+```
+
+So an explicitly declared empty container is indistinguishable from an
+accidentally emptied one, and this tool does not try to tell them apart. If your
+documents use `{}` and `[]` as meaningful values, leave these flags off — that is
+the default. `--keep-id-like` does still apply, so a protected name survives even
+when its value is an empty container (`{"id": {}}` is kept), but it protects by
+key *name* only and cannot rescue a key like `filters: {}`. Use `--keep-keys` for
+those.
+
+Array slots are never treated this way in either case: `[{}, {}]` survives
+`--drop-empty-object --drop-empty-array`, because removing one would renumber
+the array.
 
 **`--drop-array-elements` renumbers.** `[1, null, 2]` becomes `[1, 2]`, and the
 index of `2` changes from 2 to 1. Use it only where the array is a set of

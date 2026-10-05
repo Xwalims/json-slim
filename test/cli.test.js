@@ -220,6 +220,31 @@ test('--explain-policy documents the defaults', () => {
   assert.match(r.stdout, /false\s+false/);
 });
 
+test('--explain-policy does not claim the empty rules spare already-empty containers', () => {
+  // The rationale text is what a user reads to decide whether turning the flag
+  // on is safe for their documents. It used to promise "only drops containers
+  // that became empty", which was never true.
+  const r = run(['--explain-policy']);
+  assert.equal(r.status, 0);
+  assert.doesNotMatch(r.stdout, /only drops (containers|objects) that became empty/);
+  assert.match(r.stdout, /already empty or became empty here/);
+});
+
+test('the usage text does not promise the empty rules spare already-empty containers', () => {
+  const r = run(['--help']);
+  assert.equal(r.status, 0);
+  assert.doesNotMatch(r.stdout, /drop \[\] that became empty/);
+  assert.doesNotMatch(r.stdout, /drop \{\} that became empty/);
+});
+
+test('--drop-empty-object really does remove an already-empty container', () => {
+  // The behaviour the corrected wording now describes, exercised through the
+  // CLI so the wording and the flag cannot drift apart again.
+  const r = run(['--stdin', '--drop-empty-object'], { input: '{"b":{}}' });
+  assert.equal(r.status, 0);
+  assert.equal(r.stdout, '{}\n');
+});
+
 test('policy columns are aligned', () => {
   const r = run(['--explain-policy']);
   // Rebuild the expected grid instead of probing for a column: the value

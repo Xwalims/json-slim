@@ -52,6 +52,47 @@ test('dropEmptyObject removes an object that is empty from birth', () => {
   assert.equal(stringify(slim({ a: {} }, { dropEmptyObject: true }).value), '{}');
 });
 
+test('the empty rules drop already-empty containers, and say so', () => {
+  // Regression guard for a documentation lie, not a behaviour change.
+  //
+  // The CLI usage text, the README table and --explain-policy all used to
+  // promise these flags "only drop containers that BECAME empty". They never
+  // did: the container is judged after pruning, with no record of whether it
+  // was already empty beforehand. So `{"b": {}}` loses `b` even when nothing
+  // was pruned. The behaviour is deliberate and pinned by the two tests above;
+  // what was wrong was every description of it, so those now describe what
+  // happens and this test keeps them honest.
+  assert.equal(stringify(slim({ b: {} }, { dropEmptyObject: true }).value), '{}');
+  assert.equal(stringify(slim({ b: [] }, { dropEmptyArray: true }).value), '{}');
+
+  // "Already empty" and "emptied here" are genuinely indistinguishable, and
+  // both are removed -- pinning that the rule is not conditional on origin.
+  assert.equal(
+    stringify(slim({ was: {}, now: { a: null } }, { dropEmptyObject: true }).value),
+    '{}',
+  );
+
+  // Protected names apply even to an empty container, because shouldDrop
+  // consults the keep-lists before it looks at the value.
+  assert.equal(
+    stringify(slim({ id: {} }, { dropEmptyObject: true }).value),
+    '{"id":{}}',
+  );
+  assert.equal(
+    stringify(slim({ filters: {}, other: {} },
+      { dropEmptyObject: true, keepKeys: ['filters'] }).value),
+    '{"filters":{}}',
+  );
+
+  // And an empty container in an ARRAY SLOT is still never dropped, in either
+  // mode, because removing it would renumber the array.
+  assert.equal(
+    stringify(slim({ list: [{}, {}] },
+      { dropEmptyObject: true, dropEmptyArray: true }).value),
+    '{"list":[{},{}]}',
+  );
+});
+
 test('a container emptied by pruning is dropped too', () => {
   // The whole point: pruning happens before the container is judged. An
   // array slot holding null is protected by default (it is positional), so

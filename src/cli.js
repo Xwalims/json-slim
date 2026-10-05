@@ -59,8 +59,8 @@ Pruning (which value classes may be dropped):
   --drop-false             drop false                    [default: off]
   --drop-zero              drop 0 and -0                 [default: off]
   --drop-empty-string      drop ""                       [default: off]
-  --drop-empty-array       drop [] that became empty     [default: off]
-  --drop-empty-object      drop {} that became empty     [default: off]
+  --drop-empty-array       drop [] (already empty, or emptied here)  [default: off]
+  --drop-empty-object      drop {} (already empty, or emptied here)  [default: off]
   --drop-nan               drop NaN                      [default: off]
   --drop-array-elements    drop falsy ARRAY ELEMENTS     [default: off]
                            ^ renumbers the array; see --compact-arrays
