@@ -369,8 +369,8 @@ document's key, not the prototype.
 
 ```console
 $ node --test
-ℹ tests 131
-ℹ pass 131
+ℹ tests 139
+ℹ pass 139
 ℹ fail 0
 ```
 
